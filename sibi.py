@@ -1,6 +1,7 @@
 import os
 import cv2
 import time
+import math
 import threading
 import mediapipe as mp
 from gtts import gTTS
@@ -32,7 +33,7 @@ def speak(text):
             while mixer.music.get_busy():
                 time.sleep(0.1)
             mixer.music.unload()
-            os.remove(fname)
+            if os.path.exists(fname): os.remove(fname)
         except:
             pass
     threading.Thread(target=run, daemon=True).start()
@@ -44,14 +45,12 @@ def cleanup():
             try: os.remove(f)
             except: pass
 
+# --- FUNGSI PENTING: MENGHITUNG JARAK ANTAR TITIK JARI ---
+def get_dist(lm, idx1, idx2):
+    return math.hypot(lm[idx1].x - lm[idx2].x, lm[idx1].y - lm[idx2].y)
+
 def is_index_pointing(lm):
     return lm[8].y < lm[6].y
-
-def is_palm_open(lm):
-    return (
-        lm[8].y < lm[6].y and
-        lm[12].y < lm[10].y
-    )
 
 # ----------------- INIT -----------------
 cleanup()
@@ -92,7 +91,6 @@ while True:
             lm2 = result.multi_hand_landmarks[1].landmark
 
             pointer, base = None, None
-
             if is_index_pointing(lm1):
                 pointer, base = lm1, lm2
             elif is_index_pointing(lm2):
@@ -100,115 +98,78 @@ while True:
 
             if pointer:
                 dist = abs(pointer[8].x - base[5].x) + abs(pointer[8].y - base[8].y)
-
                 if dist < 0.45:
                     two_hand_counter += 1
                     if two_hand_counter >= TWO_HAND_HOLD_FRAMES:
                         detected = "Nama"
                 else:
                     two_hand_counter = 0
-            else:
-                two_hand_counter = 0
         else:
             two_hand_counter = 0
 
-        # ========== 1 HAND ==========
+        # ========== 1 HAND (FINAL STABLE LOGIC) ==========
         if hands_count == 1 and detected == "":
             hand = result.multi_hand_landmarks[0]
             mp_draw.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
             lm = hand.landmark
+            palm = get_dist(lm, 0, 9)
 
-            wrist = lm[0]
-            movement = 0
-            if prev_wrist:
-                movement = abs(wrist.x - prev_wrist.x) + abs(wrist.y - prev_wrist.y)
-            prev_wrist = wrist
+            # --- 1. LOGIKA "H" (PRIORITAS HORIZONTAL) ---
+            # Menggunakan selisih koordinat X dan Y ujung telunjuk(8) & tengah(12)
+            #
+            x_dist_8 = abs(lm[8].x - lm[5].x)
+            y_dist_8 = abs(lm[8].y - lm[5].y)
+            x_dist_12 = abs(lm[12].x - lm[9].x)
+            y_dist_12 = abs(lm[12].y - lm[9].y)
 
-            up4  = lm[4].y  < lm[3].y
-            up8  = lm[8].y  < lm[6].y
-            up12 = lm[12].y < lm[10].y
-            up16 = lm[16].y < lm[14].y
-            up20 = lm[20].y < lm[18].y
-
-            # Saya / Y
-            if up4 and up20 and not up8 and not up12 and not up16:
-                detected = "Saya" if movement > 0.02 else "Y"
-
-            # V
-            elif up8 and up12 and not up16 and not up20 and abs(lm[8].x - lm[12].x) > 0.06:
-                detected = "V"
-
-            # W
-            elif up8 and up12 and up16 and not up20:
-                detected = "W"
-
-            # R
-            elif up8 and up12 and abs(lm[8].x - lm[12].x) < 0.03:
-                detected = "R"
-
-            # L
-            elif up8 and up4 and not up12 and not up16 and not up20:
-                detected = "L"
-
-            # K
-            elif up8 and up12 and lm[4].y < lm[10].y:
-                detected = "K"
-
-            # D
-            elif up8 and not up12 and not up16 and not up20:
-                detected = "D"
-
-            # B
-            elif up8 and up12 and up16 and up20 and lm[4].x > lm[6].x:
-                detected = "B"
-
-            # A
-            elif (
-                lm[8].y > lm[6].y and
-                lm[12].y > lm[10].y and
-                lm[16].y > lm[14].y and
-                lm[20].y > lm[18].y and
-                (lm[8].z > lm[5].z - 0.01) and
-                lm[4].x > lm[3].x
-            ):
-                detected = "A"
-                
-            # H
-            elif (
-                lm[8].y > lm[6].y and
-                lm[12].y > lm[10].y and
-                lm[16].y > lm[14].y and
-                (lm[8].z < lm[5].z - 0.03) and
-                (lm[12].z < lm[9].z - 0.03)
-            ):
+            # Syarat H: Jari memanjang ke samping (X > Y) dan cukup lurus
+            if x_dist_8 > y_dist_8 and x_dist_12 > y_dist_12 and x_dist_8 > palm * 0.7:
                 detected = "H"
 
-            # F
-            elif (
-                abs(lm[4].x - lm[8].x) < 0.04 and
-                up12 and up16 and up20
-            ):
-                detected = "F"
+            # --- 2. JIKA BUKAN H, LANJUT KE GESTUR LAIN ---
+            if detected == "":
+                # Status Jari
+                up4  = get_dist(lm, 4, 17) > palm * 1.1 # Jempol terbuka
+                up8  = lm[8].y < lm[6].y  # Telunjuk tegak
+                up12 = lm[12].y < lm[10].y # Tengah tegak
+                up16 = lm[16].y < lm[14].y # Manis tegak
+                up20 = lm[20].y < lm[18].y # Kelingking tegak
 
-            # I
-            elif up20 and not up8 and not up12 and not up16:
-                detected = "I"
+                # --- SAYA vs Y (Berdasarkan Sisi Tangan) ---
+                if up4 and up20 and not up8 and not up12 and not up16:
+                    if lm[4].x < lm[20].x: 
+                        detected = "Saya" # Punggung tangan menghadap kamera
+                    else:
+                        detected = "Y"    # Telapak depan menghadap kamera
 
-            # O
-            elif abs(lm[4].x - lm[8].x) < 0.05 and not up12:
-                detected = "O"
+                # --- D (TELUNJUK TEGAK) ---
+                # Syarat: Hanya telunjuk lurus, jari lain tekuk melingkar
+                elif up8 and not up12 and not up16 and not up20:
+                    detected = "D"
 
-            # E
-            elif (lm[8].y > lm[6].y and
-                  lm[12].y > lm[10].y and
-                  lm[16].y > lm[14].y and
-                  lm[20].y > lm[18].y and
-                  lm[4].x < lm[3].x):
-                detected = "E"
+                # --- A, E, vs N (KEPALAN TANGAN) ---
+                elif not up8 and not up12 and not up16 and not up20:
+                    # N: Jempol di sela Telunjuk dan Tengah
+                    if lm[5].x < lm[4].x < lm[9].x:
+                        detected = "N"
+                    # A: Jempol di samping luar pangkal telunjuk
+                    elif lm[4].x > lm[5].x or lm[4].y < lm[5].y:
+                        detected = "A"
+                    else:
+                        detected = "E"
 
-            # C (PALING BAWAH)
-            elif abs(lm[4].x - lm[8].x) > 0.12 and up8:
-                detected = "C"
+                # --- ALFABET LAINNYA ---
+                elif up8 and up12 and not up16 and not up20:
+                    if abs(lm[8].x - lm[12].x) > 0.05: detected = "V"
+                    else: detected = "R"
+                elif up8 and up12 and up16 and not up20: detected = "W"
+                elif up8 and up4 and not up12: detected = "L"
+                elif up20 and not up8 and not up12 and not up16: detected = "I"
+                elif get_dist(lm, 4, 8) < palm * 0.4 and not up12: detected = "O"
+                elif palm * 0.4 < get_dist(lm, 4, 8) < palm * 0.9 and not up12:
+                    # Pastikan telapak tangan tegak untuk C
+                    if abs(lm[5].y - lm[0].y) > abs(lm[5].x - lm[0].x):
+                        detected = "C"
 
     # ---------- STABILIZER ----------
     if detected:
@@ -235,7 +196,6 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-# ----------------- CLEAN -----------------
 cap.release()
 cv2.destroyAllWindows()
 cleanup()
