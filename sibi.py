@@ -115,35 +115,37 @@ while True:
             palm = get_dist(lm, 0, 9)
 
             # --- 1. LOGIKA "H" (PRIORITAS HORIZONTAL) ---
-            # Menggunakan selisih koordinat X dan Y ujung telunjuk(8) & tengah(12)
             #
             x_dist_8 = abs(lm[8].x - lm[5].x)
             y_dist_8 = abs(lm[8].y - lm[5].y)
             x_dist_12 = abs(lm[12].x - lm[9].x)
             y_dist_12 = abs(lm[12].y - lm[9].y)
 
-            # Syarat H: Jari memanjang ke samping (X > Y) dan cukup lurus
             if x_dist_8 > y_dist_8 and x_dist_12 > y_dist_12 and x_dist_8 > palm * 0.7:
                 detected = "H"
 
             # --- 2. JIKA BUKAN H, LANJUT KE GESTUR LAIN ---
             if detected == "":
                 # Status Jari
-                up4  = get_dist(lm, 4, 17) > palm * 1.1 # Jempol terbuka
+                up4  = get_dist(lm, 4, 17) > palm * 1.1 # Jempol terbuka ke samping
                 up8  = lm[8].y < lm[6].y  # Telunjuk tegak
                 up12 = lm[12].y < lm[10].y # Tengah tegak
                 up16 = lm[16].y < lm[14].y # Manis tegak
                 up20 = lm[20].y < lm[18].y # Kelingking tegak
 
-                # --- SAYA vs Y (Berdasarkan Sisi Tangan) ---
-                if up4 and up20 and not up8 and not up12 and not up16:
+                # --- B (EMPAT JARI TEGAK, JEMPOL MELIPAT) ---
+                # Syarat: 4 jari lurus, jempol tidak terbuka ke samping
+                if up8 and up12 and up16 and up20 and not up4:
+                    detected = "B"
+
+                # --- SAYA vs Y (JEMPOL & KELINGKING TERBUKA) ---
+                elif up4 and up20 and not up8 and not up12 and not up16:
                     if lm[4].x < lm[20].x: 
-                        detected = "Saya" # Punggung tangan menghadap kamera
+                        detected = "Saya"
                     else:
-                        detected = "Y"    # Telapak depan menghadap kamera
+                        detected = "Y"
 
                 # --- D (TELUNJUK TEGAK) ---
-                # Syarat: Hanya telunjuk lurus, jari lain tekuk melingkar
                 elif up8 and not up12 and not up16 and not up20:
                     detected = "D"
 
@@ -167,7 +169,6 @@ while True:
                 elif up20 and not up8 and not up12 and not up16: detected = "I"
                 elif get_dist(lm, 4, 8) < palm * 0.4 and not up12: detected = "O"
                 elif palm * 0.4 < get_dist(lm, 4, 8) < palm * 0.9 and not up12:
-                    # Pastikan telapak tangan tegak untuk C
                     if abs(lm[5].y - lm[0].y) > abs(lm[5].x - lm[0].x):
                         detected = "C"
 
