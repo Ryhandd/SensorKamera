@@ -1,68 +1,118 @@
+"""
+Tambah Wajah — Daftarkan wajah baru ke dataset
+"""
+
 import cv2
 import os
+import sys
 
-# --- PENGATURAN ---
-nama_folder_dataset = "dataset"
-jumlah_sampel = 30 # Jumlah foto sampel yang akan diambil
-# ------------------
+# ─── KONFIGURASI ─────────────────────────────────────────────────────────────
+DATASET_DIR  = "dataset"
+JUMLAH_FOTO  = 40       # Jumlah sampel per pengguna
+UI_BG        = (15, 15, 15)
+UI_DIM       = (100, 100, 100)
+COLOR_OK     = (0, 255, 150)
+COLOR_WARN   = (0, 200, 255)
 
-# Pastikan folder dataset ada
-if not os.path.exists(nama_folder_dataset):
-    os.makedirs(nama_folder_dataset)
-    print(f"Folder '{nama_folder_dataset}' berhasil dibuat.")
+# ─── PERSIAPAN ────────────────────────────────────────────────────────────────
+os.makedirs(DATASET_DIR, exist_ok=True)
 
-# Minta input nama pengguna
-nama_user = input("Masukkan nama Anda: ").lower().replace(" ", "_")
-path_user = os.path.join(nama_folder_dataset, nama_user)
+print("\n╔══════════════════════════════╗")
+print("║   Pendaftaran Wajah Baru     ║")
+print("╚══════════════════════════════╝\n")
 
-# Buat folder khusus untuk user jika belum ada
-if not os.path.exists(path_user):
-    os.makedirs(path_user)
-    print(f"Folder untuk '{nama_user}' berhasil dibuat.")
-else:
-    print(f"Folder untuk '{nama_user}' sudah ada. Menambahkan gambar baru...")
+nama_user = input("  Masukkan nama Anda : ").strip()
+if not nama_user:
+    print("[ERROR] Nama tidak boleh kosong.")
+    sys.exit(1)
 
-# Inisialisasi kamera
+nama_folder = nama_user.lower().replace(" ", "_")
+path_user   = os.path.join(DATASET_DIR, nama_folder)
+os.makedirs(path_user, exist_ok=True)
+
+# Hitung foto yang sudah ada agar tidak overwrite
+existing   = [f for f in os.listdir(path_user) if f.endswith(".jpg")]
+start_idx  = len(existing) + 1
+print(f"\n  Halo, {nama_user}! Akan mengambil {JUMLAH_FOTO} foto.")
+if existing:
+    print(f"  ({len(existing)} foto lama tetap disimpan, mulai dari index {start_idx})")
+
+# ─── KAMERA & DETEKTOR ───────────────────────────────────────────────────────
 cam = cv2.VideoCapture(0)
-cam.set(3, 640) # Lebar frame
-cam.set(4, 480) # Tinggi frame
+cam.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
+cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-# Gunakan detektor wajah bawaan OpenCV (Haar Cascade)
-# Pastikan file haarcascade_frontalface_default.xml ada di folder yang sama
-# atau berikan path lengkapnya.
-face_detector = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+if not os.path.exists(cascade_path):
+    print(f"[ERROR] Haar cascade tidak ditemukan: {cascade_path}")
+    cam.release()
+    sys.exit(1)
 
-print("\n[INFO] Menyalakan kamera. Posisikan wajah Anda di depan kamera dan jangan bergerak...")
-count = 0
+face_det = cv2.CascadeClassifier(cascade_path)
+count    = 0
 
+print("\n  [INFO] Posisikan wajah di dalam kotak. Jangan bergerak terlalu cepat.")
+print("  [INFO] Tekan ESC untuk batal.\n")
+
+# ─── LOOP ────────────────────────────────────────────────────────────────────
 while True:
     ret, frame = cam.read()
     if not ret:
-        print("[ERROR] Gagal mengambil gambar dari kamera.")
+        print("[ERROR] Gagal membaca kamera.")
         break
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = face_detector.detectMultiScale(gray, 1.3, 5)
+    frame  = cv2.flip(frame, 1)
+    h, w   = frame.shape[:2]
+    gray   = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces  = face_det.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5,
+                                       minSize=(80, 80))
 
-    for (x, y, w, h) in faces:
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        count += 1
+    for (x, y, fw, fh) in faces:
+        if count < JUMLAH_FOTO:
+            idx      = start_idx + count
+            fname    = os.path.join(path_user, f"{nama_folder}_{idx}.jpg")
+            roi_gray = gray[y:y+fh, x:x+fw]
+            cv2.imwrite(fname, roi_gray)
+            count += 1
 
-        # Simpan gambar wajah yang terdeteksi
-        nama_file = os.path.join(path_user, f"{nama_user}_{count}.jpg")
-        cv2.imwrite(nama_file, gray[y:y+h, x:x+w])
+        # Visualisasi
+        progress = count / JUMLAH_FOTO
+        bar_len  = int(progress * 200)
+        color    = COLOR_OK if count < JUMLAH_FOTO else (0, 255, 0)
+        cv2.rectangle(frame, (x, y), (x + fw, y + fh), color, 2)
 
-        # Tampilkan frame di jendela
-        cv2.imshow('Pendaftaran Wajah', frame)
+    # ── Header ───────────────────────────────────────────────────────────────
+    cv2.rectangle(frame, (0, 0), (w, 55), UI_BG, -1)
+    cv2.putText(frame, f"Mendaftarkan: {nama_user}",
+                (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, COLOR_WARN, 1)
 
-    # Cek tombol 'ESC' untuk keluar atau jika sampel sudah cukup
-    k = cv2.waitKey(100) & 0xff
-    if k == 27: # 27 adalah kode ASCII untuk tombol ESC
+    # Progress bar
+    total     = JUMLAH_FOTO
+    bar_x0, bar_y0 = 10, 30
+    bar_full  = w - 20
+    bar_done  = int((count / total) * bar_full)
+    cv2.rectangle(frame, (bar_x0, bar_y0), (bar_x0 + bar_full, bar_y0 + 14),
+                  (40, 40, 40), -1)
+    cv2.rectangle(frame, (bar_x0, bar_y0), (bar_x0 + bar_done, bar_y0 + 14),
+                  COLOR_OK, -1)
+    cv2.putText(frame, f"{count}/{total} foto",
+                (bar_x0 + bar_full + 6, bar_y0 + 12),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.45, UI_DIM, 1)
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+    cv2.rectangle(frame, (0, h - 30), (w, h), UI_BG, -1)
+    cv2.putText(frame, "ESC = Batal",
+                (10, h - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, UI_DIM, 1)
+
+    cv2.imshow("Pendaftaran Wajah — SensorKamera", frame)
+
+    key = cv2.waitKey(30) & 0xFF
+    if key == 27:
+        print(f"\n[INFO] Dibatalkan. {count} foto tersimpan.")
         break
-    elif count >= jumlah_sampel:
+    if count >= JUMLAH_FOTO:
+        print(f"\n[INFO] {count} sampel berhasil diambil untuk '{nama_user}'.")
         break
 
-# Cleanup
-print(f"\n[INFO] {count} sampel wajah berhasil diambil. Menutup program.")
 cam.release()
 cv2.destroyAllWindows()
