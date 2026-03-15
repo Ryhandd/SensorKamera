@@ -14,7 +14,7 @@ if command -v python3 &> /dev/null; then
 elif command -v python &> /dev/null; then
     PYTHON="python"
 else
-    echo "[ERROR] Python tidak ditemukan. Install dari https://python.org"
+    echo "[ERROR] Python tidak ditemukan."
     exit 1
 fi
 
@@ -24,11 +24,6 @@ echo "║       SensorKamera — Setup Environment       ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-# ── Cek Python ──────────────────────────────────────────────
-if ! command -v $PYTHON &> /dev/null; then
-    echo "[ERROR] Python tidak ditemukan."
-    exit 1
-fi
 echo "[OK] Python: $($PYTHON --version)"
 
 # ── Buat venv ───────────────────────────────────────────────
@@ -47,23 +42,27 @@ else
 fi
 echo "[OK] venv aktif: $(which python)"
 
-# ── Upgrade pip ─────────────────────────────────────────────
-pip install --upgrade pip --quiet
+# ── Upgrade pip dulu ─────────────────────────────────────────
+echo "[INFO] Upgrade pip..."
+python -m pip install --upgrade pip --quiet
 
-# ── Install dependencies ──────────────────────────────────────
+# ── Install dependencies dengan urutan yang benar ────────────
 echo ""
-echo "[INFO] Menginstall dependencies..."
+echo "[INFO] Menginstall dependencies (ini butuh beberapa menit)..."
 echo ""
 
+# Install numpy & keras dulu sebelum tensorflow agar tidak konflik
+pip install "numpy==1.24.3" --quiet
+pip install "keras==2.13.1" --quiet
+pip install "typing-extensions==4.9.0" --quiet
+pip install "tensorflow==2.13.0" --quiet
+pip install "deepface==0.0.79" --quiet
 pip install \
     opencv-python \
     opencv-contrib-python \
-    mediapipe \
-    deepface \
-    gTTS \
-    pygame \
-    numpy \
-    tf-keras \
+    "mediapipe>=0.10.0" \
+    "gTTS>=2.4.0" \
+    "pygame>=2.5.0" \
     --quiet
 
 echo ""
@@ -72,10 +71,11 @@ echo ""
 echo "═══════════════════════════════════════════════"
 echo "  Cara menjalankan:"
 echo ""
-echo "    source venv/bin/activate"
-echo "    python launcher.py"
+echo "    bash run.sh"
 echo ""
-echo "  Atau langsung:"
-echo "    ./run.sh"
+echo "  atau manual:"
+echo "    source venv/Scripts/activate  (Windows)"
+echo "    source venv/bin/activate      (Linux/Mac)"
+echo "    python launcher.py"
 echo "═══════════════════════════════════════════════"
 echo ""
