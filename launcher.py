@@ -48,7 +48,7 @@ MENU_ITEMS = [
     },
     {
         "key": "2",
-        "icon": "😊",
+        "icon": "😄",
         "title": "Deteksi Emosi",
         "desc": "Baca ekspresi wajah secara real-time",
         "file": "emotion.py",
@@ -73,7 +73,7 @@ MENU_ITEMS = [
     {
         "key": "5",
         "icon": "✊",
-        "title": "Mode Jokowi",
+        "title": "Jokowi",
         "desc": "Deteksi gestur Selamat / Berjuang / Sukses",
         "file": "jokowi.py",
         "color": MG,

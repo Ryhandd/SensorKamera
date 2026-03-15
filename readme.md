@@ -2,29 +2,61 @@
 
 Kumpulan tools Computer Vision berbasis Python untuk:
 - 🤟 Deteksi Bahasa Isyarat Indonesia (SIBI) — huruf A–Z
-- 😊 Deteksi Emosi wajah real-time (DeepFace)
+- 😄 Deteksi Emosi wajah real-time (DeepFace)
 - 👤 Pendaftaran & Pengenalan Wajah (OpenCV LBPH)
-- ✊ Deteksi gestur khusus (Mode Jokowi)
+- ✊ Deteksi gestur khusus (Jokowi)
 
 ---
 
 ## 🚀 Cara Mulai
 
-### 1. Setup (sekali saja)
-```bash
-bash setup.sh
-```
-Script ini akan:
-- Membuat virtual environment `venv/`
-- Menginstall semua dependency otomatis
+### 🪟 Windows (CMD — Direkomendasikan)
 
-### 2. Jalankan
+> Buka **CMD as Administrator** (klik kanan ikon CMD → Run as administrator)
+
+```cmd
+cd D:\path\ke\SensorKamera
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Setelah install selesai, untuk menjalankan berikutnya cukup:
+```cmd
+venv\Scripts\activate
+python launcher.py
+```
+
+---
+
+### 🐚 Windows — Git Bash
+
+Kalau ingin tetap pakai Git Bash, **install dulu lewat CMD Administrator** (langkah di atas), lalu jalankan via Git Bash:
 ```bash
+source venv/Scripts/activate
+python launcher.py
+```
+
+> ⚠️ Jangan install packages dari Git Bash di Windows — rawan `[WinError 5] Access Denied`.
+> Gunakan CMD Administrator untuk proses install.
+
+---
+
+### 🐧 Linux / Mac
+
+```bash
+# Setup (sekali saja)
+bash setup.sh
+
+# Jalankan
 bash run.sh
 ```
+
 atau manual:
 ```bash
+python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
 python launcher.py
 ```
 
@@ -41,8 +73,8 @@ SensorKamera/
 ├── find_face.py       ← Kenali wajah
 ├── jokowi.py          ← Mode gestur khusus
 ├── dataset/           ← Otomatis dibuat saat add_face
-├── setup.sh           ← Setup venv + install
-├── run.sh             ← Quick launcher
+├── setup.sh           ← Setup venv (Linux/Mac)
+├── run.sh             ← Quick launcher (Linux/Mac)
 └── requirements.txt
 ```
 
@@ -87,3 +119,4 @@ SensorKamera/
 - Tekan **Q** untuk keluar dari mode manapun
 - Dataset wajah tersimpan di folder `dataset/`
 - Untuk pengenalan wajah: daftarkan minimal 30 foto per orang
+- Python yang didukung: **3.8 – 3.11** (Python 3.12+ belum stabil untuk MediaPipe)
