@@ -7,7 +7,7 @@
 set -e
 
 VENV_DIR="venv"
-PYTHON="python3"
+PYTHON="python"
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
@@ -17,8 +17,8 @@ echo ""
 
 # ── Cek Python ──────────────────────────────────────────────
 if ! command -v $PYTHON &> /dev/null; then
-    echo "[ERROR] Python3 tidak ditemukan. Install dulu dengan:"
-    echo "         sudo apt install python3 python3-venv python3-pip"
+    echo "[ERROR] python tidak ditemukan. Install dulu dengan:"
+    echo "         sudo apt install python python-venv python-pip"
     exit 1
 fi
 echo "[OK] Python: $($PYTHON --version)"
