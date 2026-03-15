@@ -7,5 +7,9 @@ if [ ! -d "$VENV_DIR" ]; then
     exit 1
 fi
 
-source "$VENV_DIR/bin/activate"
+if [ -f "$VENV_DIR/Scripts/activate" ]; then
+    source "$VENV_DIR/Scripts/activate"   # Windows
+else
+    source "$VENV_DIR/bin/activate"       # Linux / Mac
+fi
 python launcher.py
